@@ -1,9 +1,10 @@
-import { StrictMode, useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom/client";
+import { useEffect, useRef, useState } from "react";
 import * as esbuild from "esbuild-wasm";
 
+import { unpkgPathPlugin } from "./plugins/unpkg-path-plugin";
+
 const App = () => {
-  const ref = useRef<any>();
+  const ref = useRef<esbuild.Service>();
   const [input, setInput] = useState("");
   const [code, setCode] = useState("");
 
@@ -21,12 +22,14 @@ const App = () => {
   const handleClick = async () => {
     if (!ref.current) return;
 
-    const result = await ref.current.transform(input, {
-      loader: "jsx",
-      target: "es2015",
+    const result = await ref.current.build({
+      entryPoints: ["index.js"],
+      bundle: true,
+      write: false,
+      plugins: [unpkgPathPlugin()],
     });
 
-    setCode(result.code);
+    setCode(result.outputFiles[0].text);
   };
 
   return (
@@ -43,11 +46,4 @@ const App = () => {
   );
 };
 
-const root = ReactDOM.createRoot(
-  document.getElementById("root") as HTMLElement
-);
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+export default App;
