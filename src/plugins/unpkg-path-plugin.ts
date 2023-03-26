@@ -1,13 +1,26 @@
+import axios from "axios";
 import {
   OnLoadArgs,
   PluginBuild,
   OnLoadResult,
   OnResolveResult,
+  OnResolveArgs,
 } from "esbuild-wasm";
 
-const handleResolve = async (args: any): Promise<OnResolveResult> => {
+const handleResolve = async (args: OnResolveArgs): Promise<OnResolveResult> => {
   console.log("onResolve", args);
-  return { path: args.path, namespace: "a" };
+  if (args.path === "index.js") return { path: args.path, namespace: "a" };
+  if (args.path.includes("./") || args.path.includes("../")) {
+    return {
+      path: new URL(args.path, "https://unpkg.com" + args.resolveDir + "/")
+        .href,
+      namespace: "a",
+    };
+  }
+  return {
+    path: `https://unpkg.com/${args.path}`,
+    namespace: "a",
+  };
 };
 
 const handleLoad = async (args: OnLoadArgs): Promise<OnLoadResult> => {
@@ -17,16 +30,17 @@ const handleLoad = async (args: OnLoadArgs): Promise<OnLoadResult> => {
     return {
       loader: "jsx",
       contents: `
-          import message from './message';
+          const message = require('react');
           console.log(message);
         `,
     };
-  } else {
-    return {
-      loader: "jsx",
-      contents: 'export default "hi there!"',
-    };
   }
+  const { data, request } = await axios.get(args.path);
+  return {
+    loader: "jsx",
+    contents: data,
+    resolveDir: new URL("./", request.responseURL).pathname,
+  };
 };
 
 export const unpkgPathPlugin = () => {
